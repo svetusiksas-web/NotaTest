@@ -4,7 +4,7 @@ import {getFirestore} from 'firebase/firestore';
 
 const firebaseConfig={
   apiKey:'AIzaSyCKPwWsyVz84NyOoRkG5CcTbu1-OZ3tj3A',
-  authDomain:'notatest-f208b.web.app',
+  authDomain:'notatest-f208b.firebaseapp.com',
   projectId:'notatest-f208b',
   storageBucket:'notatest-f208b.firebasestorage.app',
   messagingSenderId:'94833661296',
