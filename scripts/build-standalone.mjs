@@ -1,0 +1,20 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const dist=resolve(root,'dist');
+let html=readFileSync(resolve(dist,'app.html'),'utf8');
+let inlineScript='';
+html=html.replace(/<script type="module" crossorigin src="\.\/assets\/([^"]+)"><\/script>/,(_,file)=>{
+  let js=readFileSync(resolve(dist,'assets',file),'utf8');
+  const image=readFileSync(resolve(root,'public','watercolor-piano-background.png')).toString('base64');
+  js=js.replace(/\.\.\/watercolor-piano-background\.png/g,`data:image/png;base64,${image}`);
+  inlineScript=`<script>(0,eval)(new TextDecoder().decode(Uint8Array.from(atob('${Buffer.from(js,'utf8').toString('base64')}'),c=>c.charCodeAt(0))))<\/script>`;
+  return '';
+});
+html=html.replace(/\s*<link rel="stylesheet"[^>]*>/g,'').replaceAll(' crossorigin','');
+const diagnostics=`<script>window.addEventListener('error',function(e){document.body.innerHTML='<main style="padding:32px;font:16px system-ui;color:#742"><h1>Ошибка запуска NotaTest</h1><pre style="white-space:pre-wrap">'+String(e.message)+'\\n'+String(e.filename||'')+':'+String(e.lineno||'')+'</pre></main>'});window.addEventListener('unhandledrejection',function(e){document.body.innerHTML='<main style="padding:32px;font:16px system-ui;color:#742"><h1>Ошибка запуска NotaTest</h1><pre style="white-space:pre-wrap">'+String(e.reason)+'</pre></main>'});<\/script>`;
+html=html.replace('<body>',`<body>${diagnostics}`);
+html=html.replace('</body>',`${inlineScript}</body>`);
+writeFileSync(resolve(root,'index.html'),html);
+console.log('Создан index.html для открытия двойным щелчком');

@@ -1,0 +1,16 @@
+body {
+  background: linear-gradient(#faf9f68f, #faf9f68f), url('/watercolor-piano-background.png') center / cover fixed no-repeat, #faf9f6;
+}
+.shell > main { background:linear-gradient(90deg,#faf9f62e,#faf9f60f); }
+.hero { background:linear-gradient(105deg,#fffefae8 35%,#eeeaf3c7); }
+.options-toolbar { display:flex; align-items:end; gap:16px; margin:14px 0 4px; }
+.options-toolbar label { display:flex; align-items:center; gap:9px; }
+.options-toolbar label input { width:72px; margin:0; }
+.options-toolbar span { color:#9a96a1; font-size:11px; padding-bottom:11px; }
+.option > input:not([type='radio']):not([type='checkbox']) { flex:1; }
+.remove-option, .add-option { display:inline-flex; align-items:center; justify-content:center; border:0; background:transparent; }
+.remove-option { padding:7px; }
+.remove-option:disabled { opacity:.25; cursor:not-allowed; }
+.add-option { gap:7px; color:#7770a8; font-weight:700; padding:10px 4px; margin-top:5px; }
+.add-option:hover { color:#5f588e; }
+@media(max-width:600px) { .options-toolbar { align-items:flex-start; flex-direction:column; gap:7px; } .options-toolbar span { padding-bottom:0; } }
