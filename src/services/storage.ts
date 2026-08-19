@@ -1,8 +1,12 @@
 import type {Attempt,QuizTest} from '../types';
+import {collection,deleteDoc,doc,getDocs,query,setDoc,where} from 'firebase/firestore';
+import {auth,db,waitForUser} from './firebase';
 const TK='notatest.tests.v1',AK='notatest.attempts.v1';
 const memory=new Map<string,string>();
 const read=<T>(k:string,f:T):T=>{try{return JSON.parse(localStorage.getItem(k)??memory.get(k)??'') as T}catch{try{return JSON.parse(memory.get(k)??'') as T}catch{return f}}};
 const write=(k:string,v:unknown)=>{const value=JSON.stringify(v);memory.set(k,value);try{localStorage.setItem(k,value)}catch{/* file:// may block persistent storage; the app still works in memory */}};
-export const testService={all:()=>read<QuizTest[]>(TK,[]),get:(idOrSlug:string)=>read<QuizTest[]>(TK,[]).find(t=>t.id===idOrSlug||t.slug===idOrSlug),save:(test:QuizTest)=>{const a=read<QuizTest[]>(TK,[]);const i=a.findIndex(t=>t.id===test.id);i<0?a.unshift(test):a.splice(i,1,test);write(TK,a);return test},remove:(id:string)=>write(TK,read<QuizTest[]>(TK,[]).filter(t=>t.id!==id))};
-export const resultService={all:()=>read<Attempt[]>(AK,[]),save:(a:Attempt)=>write(AK,[a,...read<Attempt[]>(AK,[])])};
+const cloudSaveTest=async(test:QuizTest)=>{const user=auth.currentUser;if(!user||user.isAnonymous)return;await setDoc(doc(db,'tests',test.id),{...test,ownerId:user.uid})};
+export const testService={all:()=>read<QuizTest[]>(TK,[]),get:(idOrSlug:string)=>read<QuizTest[]>(TK,[]).find(t=>t.id===idOrSlug||t.slug===idOrSlug),save:(test:QuizTest)=>{const user=auth.currentUser;const next={...test,...user&&!user.isAnonymous?{ownerId:user.uid}:{}};const a=read<QuizTest[]>(TK,[]);const i=a.findIndex(t=>t.id===next.id);i<0?a.unshift(next):a.splice(i,1,next);write(TK,a);void cloudSaveTest(next);return next},remove:(id:string)=>{write(TK,read<QuizTest[]>(TK,[]).filter(t=>t.id!==id));if(auth.currentUser&&!auth.currentUser.isAnonymous)void deleteDoc(doc(db,'tests',id))}};
+export const resultService={all:()=>read<Attempt[]>(AK,[]),save:(a:Attempt)=>{const test=testService.get(a.testId);const next={...a,ownerId:test?.ownerId};write(AK,[next,...read<Attempt[]>(AK,[])]);void setDoc(doc(db,'attempts',a.id),next);return next}};
+export async function initializeCloud(){try{const user=await waitForUser();const testsQuery=user.isAnonymous?query(collection(db,'tests'),where('status','==','published')):query(collection(db,'tests'),where('ownerId','==',user.uid));const tests=(await getDocs(testsQuery)).docs.map(item=>item.data() as QuizTest);if(tests.length)write(TK,tests);if(!user.isAnonymous){const attempts=(await getDocs(query(collection(db,'attempts'),where('ownerId','==',user.uid)))).docs.map(item=>item.data() as Attempt);write(AK,attempts)}}catch(error){console.warn('Firebase недоступен, используется локальное хранилище',error)}}
 export const telegramService={notifyNewAttempt:async()=>({ok:false,reason:'Telegram backend is not configured'})};

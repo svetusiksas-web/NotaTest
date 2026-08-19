@@ -13,4 +13,6 @@ body {
 .remove-option:disabled { opacity:.25; cursor:not-allowed; }
 .add-option { gap:7px; color:#7770a8; font-weight:700; padding:10px 4px; margin-top:5px; }
 .add-option:hover { color:#5f588e; }
+.auth-button { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:10px; padding:10px; border:0; border-radius:10px; background:transparent; color:#7770a8; font-size:12px; font-weight:700; }
+.auth-button:hover { background:#f1eef6; }
 @media(max-width:600px) { .options-toolbar { align-items:flex-start; flex-direction:column; gap:7px; } .options-toolbar span { padding-bottom:0; } }
