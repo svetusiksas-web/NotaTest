@@ -16,3 +16,25 @@ body {
 .auth-button { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:10px; padding:10px; border:0; border-radius:10px; background:transparent; color:#7770a8; font-size:12px; font-weight:700; }
 .auth-button:hover { background:#f1eef6; }
 @media(max-width:600px) { .options-toolbar { align-items:flex-start; flex-direction:column; gap:7px; } .options-toolbar span { padding-bottom:0; } }
+
+@media(max-width:800px) {
+  .shell > aside { gap:6px; overflow:hidden; }
+  .shell > aside .brand b { display:none; }
+  .shell > aside nav { flex:1; justify-content:center; gap:2px; }
+  .shell > aside .auth-button { flex:0 0 42px; width:42px; margin:0; padding:10px; font-size:0; }
+  .shell > main { min-width:0; overflow:hidden; }
+  .page-head { display:block; min-width:0; }
+  .page-head h1 { width:100%; min-width:0; max-width:100%; overflow-wrap:anywhere; line-height:1.08; font-size:28px; }
+  .hero { min-height:0; }
+  .hero > div:first-child { width:100%; min-width:0; }
+  .hero p { max-width:100%; overflow-wrap:anywhere; }
+  .hero .actions { flex-direction:column; align-items:stretch; }
+  .hero .actions .button { width:100%; }
+  .stats article { min-width:0; }
+}
+
+@media(max-width:480px) {
+  .shell > main { padding:24px 16px; }
+  .hero { padding:28px 24px; border-radius:22px; }
+  .hero h2 { font-size:36px; }
+}

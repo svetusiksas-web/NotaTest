@@ -9,3 +9,7 @@ dist
 .chrome-check*/
 .edge-test/
 index-check*.png
+.firebase/
+.mobile-check/
+firebase-debug.log
+mobile-*.png
