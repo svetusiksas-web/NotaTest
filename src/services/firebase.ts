@@ -1,5 +1,5 @@
 import {initializeApp} from 'firebase/app';
-import {getAuth,GoogleAuthProvider,onAuthStateChanged,signInAnonymously,signInWithPopup,signInWithRedirect,signOut,type User} from 'firebase/auth';
+import {getAuth,GoogleAuthProvider,onAuthStateChanged,signInAnonymously,signInWithPopup,signOut,type User} from 'firebase/auth';
 import {getFirestore} from 'firebase/firestore';
 
 const firebaseConfig={
@@ -21,8 +21,6 @@ export const waitForUser=()=>new Promise<User>((resolve,reject)=>{
 export const loginWithGoogle=()=>{
   const provider=new GoogleAuthProvider();
   provider.setCustomParameters({prompt:'select_account'});
-  return window.matchMedia('(max-width: 800px)').matches
-    ? signInWithRedirect(auth,provider)
-    : signInWithPopup(auth,provider);
+  return signInWithPopup(auth,provider);
 };
 export const logout=()=>signOut(auth).then(()=>signInAnonymously(auth));
