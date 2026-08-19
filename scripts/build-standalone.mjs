@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const dist=resolve(root,'dist');
 let html=readFileSync(resolve(dist,'app.html'),'utf8');
+writeFileSync(resolve(dist,'index.html'),html);
 let inlineScript='';
 html=html.replace(/<script type="module" crossorigin src="\.\/assets\/([^"]+)"><\/script>/,(_,file)=>{
   let js=readFileSync(resolve(dist,'assets',file),'utf8');
