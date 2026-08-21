@@ -1,6 +1,6 @@
 export function studentTestUrl(slug:string){
   const base=`${window.location.origin}${window.location.pathname}`;
-  return `${base}#/test/${encodeURIComponent(slug)}`;
+  return `${base}#/t/${encodeURIComponent(slug)}`;
 }
 
 export async function copyStudentTestUrl(slug:string){

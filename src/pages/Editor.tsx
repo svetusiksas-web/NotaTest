@@ -2,7 +2,7 @@ import {ArrowLeft, Eye, GripVertical, Image, Music, Plus, Save, Trash2, Upload, 
 import {useEffect, useState} from 'react';
 import {Link, useNavigate, useParams, useSearchParams} from 'react-router-dom';
 import {Header} from '../components/Header';
-import {id, slugify} from '../lib/id';
+import {id, shortCode, slugify} from '../lib/id';
 import {attachMediaByOrder, importMediaFiles, type ImportedMedia} from '../lib/media';
 import {parseQuestions} from '../lib/parser';
 import {testService} from '../services/storage';
@@ -10,11 +10,12 @@ import type {Question, QuestionType, QuizTest} from '../types';
 
 const labels:Record<QuestionType,string>={single:'Один ответ',multiple:'Несколько ответов',short:'Короткий ответ',matching:'Сопоставление',ordering:'Последовательность'};
 const blank=(type:QuestionType):Question=>({id:id(),type,text:'',points:1,...(type==='single'||type==='multiple'?{options:[1,2,3].map(()=>({id:id(),text:'',isCorrect:false}))}:type==='short'?{acceptedAnswers:['']}:type==='matching'?{pairs:[{id:id(),left:'',right:''},{id:id(),left:'',right:''}]}:{items:['','']})});
+const newTest=():QuizTest=>{const testId=id();return{id:testId,slug:shortCode(testId),title:'Новый музыкальный тест',subject:'Сольфеджио',grade:'',topic:'',description:'',instructions:'',status:'draft',questions:[],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}};
 
 export function Editor(){
   const {id:routeId}=useParams(); const nav=useNavigate(); const [params]=useSearchParams();
   const existing=routeId&&routeId!=='new'?testService.get(routeId):undefined;
-  const [test,setTest]=useState<QuizTest>(()=>existing??{id:id(),slug:'',title:'Новый музыкальный тест',subject:'Сольфеджио',grade:'',topic:'',description:'',instructions:'',status:'draft',questions:[],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
+  const [test,setTest]=useState<QuizTest>(()=>existing??newTest());
   const [importOpen,setImportOpen]=useState(params.has('import')); const [raw,setRaw]=useState('');
   const [unrecognized,setUnrecognized]=useState<string[]>([]); const [media,setMedia]=useState<ImportedMedia[]>([]); const [mediaError,setMediaError]=useState(''); const [saved,setSaved]=useState(true);
   useEffect(()=>{if(!saved){const timer=setTimeout(()=>save(),900);return()=>clearTimeout(timer)}},[test,saved]);
