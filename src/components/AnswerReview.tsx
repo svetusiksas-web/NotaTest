@@ -1,0 +1,10 @@
+import{CheckCircle2,XCircle}from'lucide-react';
+import{scoreQuestion}from'../lib/scoring';
+import type{Answer,Attempt,Question,QuizTest}from'../types';
+
+const empty='Нет ответа';
+const optionTexts=(q:Question,ids:string[])=>ids.map(value=>q.options?.find(option=>option.id===value)?.text??value);
+const answerText=(q:Question,answer:Answer|undefined)=>{if(answer===undefined||answer===''||(Array.isArray(answer)&&!answer.length))return empty;if(q.type==='single')return optionTexts(q,[answer as string])[0]??empty;if(q.type==='multiple')return optionTexts(q,answer as string[]).join(', ')||empty;if(q.type==='matching')return Object.entries(answer as Record<string,string>).map(([left,right])=>`${left} — ${right}`).join('; ')||empty;if(q.type==='ordering')return(answer as string[]).map((item,index)=>`${index+1}. ${item}`).join(' → ')||empty;return String(answer)};
+const correctText=(q:Question)=>{if(q.type==='single'||q.type==='multiple')return q.options?.filter(option=>option.isCorrect).map(option=>option.text).join(', ')||'Не указан';if(q.type==='short')return q.acceptedAnswers?.join(' / ')||'Не указан';if(q.type==='matching')return q.pairs?.map(pair=>`${pair.left} — ${pair.right}`).join('; ')||'Не указан';return q.items?.map((item,index)=>`${index+1}. ${item}`).join(' → ')||'Не указан'};
+
+export function AnswerReview({test,attempt}:{test:QuizTest;attempt:Attempt}){return <div className="answer-review">{test.questions.map((question,index)=>{const earned=scoreQuestion(question,attempt.answers[question.id]);const correct=earned===question.points;return <article className={`review-item ${correct?'correct':'incorrect'}`} key={question.id}><div className="review-heading"><span>{correct?<CheckCircle2/>:<XCircle/>}</span><div><small>Вопрос {index+1}</small><h3>{question.text}</h3></div><b>{earned} / {question.points}</b></div><div className="review-answers"><p><span>Ответ ученика</span>{answerText(question,attempt.answers[question.id])}</p><p><span>Правильный ответ</span>{correctText(question)}</p></div></article>})}</div>}
