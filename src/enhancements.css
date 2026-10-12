@@ -18,6 +18,11 @@ body {
 .modal { max-height:calc(100vh - 32px); overflow-y:auto; }
 .modal > .actions { position:sticky; bottom:-32px; z-index:2; margin:18px -32px -32px; padding:16px 32px; background:#fffdfa; border-top:1px solid var(--line); }
 .button.compact { padding:7px 10px; font-size:11px; }
+.share-panel { display:grid; grid-template-columns:auto minmax(220px,1fr) auto auto; gap:12px; align-items:center; margin-bottom:20px; }
+.share-panel div { display:grid; gap:3px; }
+.share-panel div span { color:#8d8995; font-size:11px; }
+.share-panel input { min-width:0; width:100%; }
+.card-actions .share-action { display:inline-flex; align-items:center; gap:5px; color:#6f679e; font-size:11px; font-weight:700; text-decoration:none; }
 .result-details { width:min(900px,100%); }
 .answer-review { display:grid; gap:12px; margin-top:24px; text-align:left; }
 .review-item { border:1px solid var(--line); border-left:5px solid; border-radius:14px; padding:18px; background:#fff; }
@@ -36,6 +41,8 @@ body {
 @media(max-width:600px) { .options-toolbar { align-items:flex-start; flex-direction:column; gap:7px; } .options-toolbar span { padding-bottom:0; } }
 
 @media(max-width:800px) {
+  .share-panel { grid-template-columns:1fr 1fr; }
+  .share-panel div,.share-panel input { grid-column:1/-1; }
   .review-answers { grid-template-columns:1fr; }
   .shell > aside { gap:6px; overflow:hidden; }
   .shell > aside .brand b { display:none; }

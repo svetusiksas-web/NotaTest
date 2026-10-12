@@ -5,6 +5,13 @@ export function studentTestUrl(slug:string){
 
 export async function copyStudentTestUrl(slug:string){
   const url=studentTestUrl(slug);
-  await navigator.clipboard.writeText(url);
+  if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(url);
+  else{
+    const input=document.createElement('textarea');
+    input.value=url;input.style.position='fixed';input.style.opacity='0';
+    document.body.appendChild(input);input.select();
+    if(!document.execCommand('copy'))throw new Error('COPY_FAILED');
+    input.remove();
+  }
   return url;
 }

@@ -3,7 +3,7 @@ const norm=(v:string)=>v.trim().replace(/\s+/g,' ').toLocaleLowerCase('ru');
 export function scoreQuestion(q:Question,a:Answer|undefined){
   if(a===undefined)return 0;
   if(q.type==='single')return q.options?.find(o=>o.id===a&&o.isCorrect)?q.points:0;
-  if(q.type==='multiple'){const selected=[...(a as string[])].sort();const correct=(q.options??[]).filter(o=>o.isCorrect).map(o=>o.id).sort();return JSON.stringify(selected)===JSON.stringify(correct)?q.points:0}
+  if(q.type==='multiple'){if(!Array.isArray(a))return 0;const selected=[...new Set(a)].sort();const correct=(q.options??[]).filter(o=>o.isCorrect).map(o=>o.id).sort();return correct.length>0&&selected.length===correct.length&&selected.every((id,index)=>id===correct[index])?q.points:0}
   if(q.type==='short')return q.acceptedAnswers?.some(v=>norm(v)===norm(a as string))?q.points:0;
   if(q.type==='ordering')return JSON.stringify(a)===JSON.stringify(q.items)?q.points:0;
   return q.pairs?.every(p=>(a as Record<string,string>)[p.left]===p.right)?q.points:0;

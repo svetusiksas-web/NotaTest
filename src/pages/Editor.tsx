@@ -1,10 +1,12 @@
-import {ArrowLeft, Eye, GripVertical, Image, Music, Plus, Save, Trash2, Upload, X} from 'lucide-react';
+import {ArrowLeft, Check, Copy, Eye, GripVertical, Image, Music, Plus, Save, Trash2, Upload, X} from 'lucide-react';
 import {useEffect, useState} from 'react';
 import {Link, useNavigate, useParams, useSearchParams} from 'react-router-dom';
 import {Header} from '../components/Header';
 import {id, shortCode, slugify} from '../lib/id';
 import {attachMediaByOrder, importMediaFiles, type ImportedMedia} from '../lib/media';
 import {parseQuestions} from '../lib/parser';
+import {copyStudentTestUrl, studentTestUrl} from '../lib/publicLink';
+import {auth, loginWithGoogle} from '../services/firebase';
 import {testService} from '../services/storage';
 import type {Question, QuestionType, QuizTest} from '../types';
 
@@ -18,16 +20,21 @@ export function Editor(){
   const [test,setTest]=useState<QuizTest>(()=>existing??newTest());
   const [importOpen,setImportOpen]=useState(params.has('import')); const [raw,setRaw]=useState('');
   const [unrecognized,setUnrecognized]=useState<string[]>([]); const [media,setMedia]=useState<ImportedMedia[]>([]); const [mediaError,setMediaError]=useState(''); const [saved,setSaved]=useState(true);
+  const [publishing,setPublishing]=useState(false); const [copied,setCopied]=useState(false);
   useEffect(()=>{if(!saved){const timer=setTimeout(()=>save(),900);return()=>clearTimeout(timer)}},[test,saved]);
   const change=(patch:Partial<QuizTest>)=>{setTest(t=>({...t,...patch}));setSaved(false)};
-  const save=(publish=false)=>{if(publish&&!test.title.trim()){alert('Введите название теста перед публикацией.');return}const next={...test,slug:test.slug||slugify(test.title),status:publish?'published':test.status,updatedAt:new Date().toISOString()} as QuizTest;try{testService.save(next);setTest(next);setSaved(true);if(routeId==='new')nav(`/editor/${next.id}`,{replace:true})}catch{alert('Не удалось сохранить: медиафайлы слишком велики для локального хранилища. Уменьшите файлы.')}};
+  const save=()=>{const next={...test,slug:test.slug||slugify(test.title),updatedAt:new Date().toISOString()} as QuizTest;try{testService.save(next);setTest(next);setSaved(true);if(routeId==='new')nav(`/editor/${next.id}`,{replace:true})}catch{alert('Не удалось сохранить тест. Уменьшите добавленные медиафайлы.')}};
+  const publicationError=()=>{if(!test.title.trim())return 'Введите название теста перед публикацией.';if(!test.questions.length)return 'Добавьте хотя бы один вопрос.';for(let i=0;i<test.questions.length;i++){const q=test.questions[i];if(!q.text.trim())return `Заполните текст вопроса ${i+1}.`;if(q.type==='single'&&(q.options??[]).filter(o=>o.isCorrect).length!==1)return `В вопросе ${i+1} отметьте один правильный ответ.`;if(q.type==='multiple'&&(q.options??[]).filter(o=>o.isCorrect).length<2)return `В вопросе ${i+1} отметьте минимум два правильных ответа.`;if((q.type==='single'||q.type==='multiple')&&(q.options??[]).some(o=>!o.text.trim()))return `Заполните все варианты ответа в вопросе ${i+1}.`}return ''};
+  const publish=async()=>{const invalid=publicationError();if(invalid){alert(invalid);return}setPublishing(true);try{if(!auth.currentUser||auth.currentUser.isAnonymous)await loginWithGoogle();const next=await testService.publish({...test,slug:test.slug||slugify(test.title),updatedAt:new Date().toISOString()});setTest(next);setSaved(true);if(routeId==='new')nav(`/editor/${next.id}`,{replace:true});alert('Тест опубликован. Ссылка для учеников готова.')}catch(error){console.error(error);alert('Не удалось опубликовать тест. Войдите через Google и проверьте подключение к интернету.')}finally{setPublishing(false)}};
+  const copyLink=async()=>{try{await copyStudentTestUrl(test.slug);setCopied(true);setTimeout(()=>setCopied(false),2000)}catch{alert('Не удалось скопировать ссылку. Выделите её и скопируйте вручную.')}};
   const add=(type:QuestionType)=>change({questions:[...test.questions,blank(type)]});
   const addMedia=async(files:FileList|File[])=>{const result=await importMediaFiles(files);setMedia(m=>[...m,...result.imported]);setMediaError(result.rejected.length?`Не добавлены: ${result.rejected.join(', ')}`:'')};
   const pasteMedia=async(e:React.ClipboardEvent)=>{const files=Array.from(e.clipboardData.items).filter(x=>x.kind==='file').map(x=>x.getAsFile()).filter((x):x is File=>Boolean(x));if(files.length)await addMedia(files)};
   const importNow=()=>{const parsed=parseQuestions(raw);const questions=attachMediaByOrder(parsed.questions,media);change({questions:[...test.questions,...questions]});setUnrecognized(parsed.unrecognized);if(!parsed.unrecognized.length){setImportOpen(false);setRaw('');setMedia([])}};
   return <>
-    <div className="editor-top"><Link to="/tests"><ArrowLeft/>Все тесты</Link><span className={saved?'saved':'unsaved'}>● {saved?'Сохранено':'Сохраняем…'}</span><button className="button" onClick={()=>setImportOpen(true)}><Upload/>Массовый импорт</button><button className="button" onClick={()=>save()}><Save/>Сохранить</button><button className="button primary" onClick={()=>save(true)}>Опубликовать</button></div>
+    <div className="editor-top"><Link to="/tests"><ArrowLeft/>Все тесты</Link><span className={saved?'saved':'unsaved'}>● {saved?'Сохранено':'Сохраняем…'}</span><button className="button" onClick={()=>setImportOpen(true)}><Upload/>Массовый импорт</button><button className="button" onClick={save}><Save/>Сохранить</button><button className="button primary" disabled={publishing} onClick={()=>void publish()}>{publishing?'Публикуем…':'Опубликовать'}</button></div>
     <Header eyebrow="Конструктор теста" title={test.title||'Новый тест'}/>
+    {test.status==='published'&&<div className="share-panel panel"><div><b>Ссылка для учеников</b><span>Тест доступен без регистрации</span></div><input readOnly value={studentTestUrl(test.slug)} onFocus={event=>event.currentTarget.select()}/><button className="button primary" onClick={()=>void copyLink()}>{copied?<Check/>:<Copy/>}{copied?'Скопировано':'Копировать'}</button><Link className="button" to={`/test/${test.slug}`}><Eye/>Открыть</Link></div>}
     <section className="editor-layout"><div>
       <article className="panel metadata"><label>Название теста<input className="title-input" value={test.title} onChange={e=>change({title:e.target.value})} placeholder="Например: Интервалы, 6 класс"/></label><div className="form-grid"><label>Предмет<input value={test.subject} onChange={e=>change({subject:e.target.value})}/></label><label>Класс / группа<input value={test.grade} onChange={e=>change({grade:e.target.value})}/></label><label>Тема<input value={test.topic} onChange={e=>change({topic:e.target.value})}/></label><label>Описание<input value={test.description} onChange={e=>change({description:e.target.value})}/></label></div></article>
       {test.questions.map((q,i)=><QuestionCard key={q.id} q={q} index={i} update={value=>change({questions:test.questions.map((x,n)=>n===i?value:x)})} remove={()=>change({questions:test.questions.filter(x=>x.id!==q.id)})}/>)}
