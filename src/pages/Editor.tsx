@@ -2,6 +2,7 @@ import {ArrowLeft, Check, Copy, Eye, GripVertical, Image, Music, Plus, Save, Tra
 import {useEffect, useState} from 'react';
 import {Link, useNavigate, useParams, useSearchParams} from 'react-router-dom';
 import {Header} from '../components/Header';
+import {subjects} from '../data/subjects';
 import {id, shortCode, slugify} from '../lib/id';
 import {attachMediaByOrder, importMediaFiles, type ImportedMedia} from '../lib/media';
 import {parseQuestions} from '../lib/parser';
@@ -36,7 +37,7 @@ export function Editor(){
     <Header eyebrow="Конструктор теста" title={test.title||'Новый тест'}/>
     {test.status==='published'&&<div className="share-panel panel"><div><b>Ссылка для учеников</b><span>Тест доступен без регистрации</span></div><input readOnly value={studentTestUrl(test.slug)} onFocus={event=>event.currentTarget.select()}/><button className="button primary" onClick={()=>void copyLink()}>{copied?<Check/>:<Copy/>}{copied?'Скопировано':'Копировать'}</button><Link className="button" to={`/test/${test.slug}`}><Eye/>Открыть</Link></div>}
     <section className="editor-layout"><div>
-      <article className="panel metadata"><label>Название теста<input className="title-input" value={test.title} onChange={e=>change({title:e.target.value})} placeholder="Например: Интервалы"/></label><div className="form-grid"><label>Предмет<input value={test.subject} onChange={e=>change({subject:e.target.value})}/></label><label>Группа<input value={test.grade} onChange={e=>change({grade:e.target.value})}/></label></div></article>
+      <article className="panel metadata"><label>Название теста<input className="title-input" value={test.title} onChange={e=>change({title:e.target.value})} placeholder="Например: Интервалы"/></label><div className="form-grid"><label>Предмет<select value={test.subject} onChange={e=>change({subject:e.target.value})}>{!subjects.includes(test.subject as typeof subjects[number])&&<option value={test.subject}>{test.subject}</option>}{subjects.map(subject=><option key={subject} value={subject}>{subject}</option>)}</select></label><label>Группа<input value={test.grade} onChange={e=>change({grade:e.target.value})}/></label></div></article>
       {test.questions.map((q,i)=><QuestionCard key={q.id} q={q} index={i} update={value=>change({questions:test.questions.map((x,n)=>n===i?value:x)})} remove={()=>change({questions:test.questions.filter(x=>x.id!==q.id)})}/>)}
       {!test.questions.length&&<div className="empty panel"><Music/><h3>Добавьте первый вопрос</h3><p>Выберите тип справа или импортируйте текст вместе с медиафайлами.</p></div>}
     </div><aside className="tools panel"><h3>Добавить вопрос</h3>{(Object.keys(labels) as QuestionType[]).map(type=><button key={type} onClick={()=>add(type)}><Plus/>{labels[type]}</button>)}<hr/><button onClick={()=>setImportOpen(true)}><Upload/>Вставить весь тест</button>{test.status==='published'&&<Link className="button" to={`/test/${test.slug}`}><Eye/>Глазами ученика</Link>}</aside></section>
