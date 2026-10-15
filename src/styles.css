@@ -22,3 +22,24 @@
 @media(max-width:1100px) and (min-width:801px){.dashboard .subject-card{padding:15px;gap:12px}.dashboard .subject-card b{font-size:15px}}
 @media(max-width:800px){.dashboard .subject-card{min-height:88px}}
 @media(max-width:520px){.dashboard .subject-card{min-height:82px}}
+
+/* Media inside answer variants. */
+.option-editor{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:13px;background:#fcfbfa}
+.option-editor>.option{margin-top:0}
+.answer-media-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.answer-media-actions label{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border-radius:8px;color:#7770a8;background:#f2eff7;cursor:pointer;font-size:11px}
+.answer-media-actions label:hover{background:#eae6f2}
+.answer-media-actions input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.answer-media-actions svg{width:15px;height:15px}
+.answer-media-preview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0}
+.answer-media-preview>div{display:flex;min-width:0;flex-direction:column;gap:7px;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.answer-media-preview img{width:100%;height:140px;object-fit:contain;border-radius:7px;background:#f5f3f2}
+.answer-media-preview audio,.answer-audio-preview audio{width:100%;min-width:0}
+.answer-media-preview button,.answer-audio-preview button{display:inline-flex;align-items:center;gap:5px;border:0;background:transparent;font-size:11px}
+.answer-audio-preview{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.answer-option-content{display:flex;min-width:0;flex:1;flex-direction:column;align-items:flex-start;gap:9px}
+.student-question .answer-option-content>img{width:auto;max-width:100%;height:auto;max-height:220px;margin:0;object-fit:contain}
+.student-question .answer-option-content>audio{width:min(420px,100%);margin:0}
+.matching-gallery audio,.match-source audio{width:100%;min-width:0}
+.match-source{flex-wrap:wrap}
+@media(max-width:600px){.answer-media-preview{grid-template-columns:1fr}.answer-media-actions label{flex:1;justify-content:center}.student-question .answer-option-content>img{max-height:180px}}
