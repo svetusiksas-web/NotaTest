@@ -14,13 +14,25 @@ const firebaseConfig={
 const app=initializeApp(firebaseConfig);
 export const auth=getAuth(app);
 export const db=getFirestore(app);
+export const TEACHER_EMAIL='svetusiksas@gmail.com';
+export const isTeacher=(user:User|null|undefined)=>Boolean(user&&!user.isAnonymous&&user.email?.toLowerCase()===TEACHER_EMAIL);
+
+const signInAsGuest=async()=>{
+  await signOut(auth);
+  return (await signInAnonymously(auth)).user;
+};
 
 export const waitForUser=()=>new Promise<User>((resolve,reject)=>{
-  const stop=onAuthStateChanged(auth,user=>{stop();user?resolve(user):signInAnonymously(auth).then(result=>resolve(result.user)).catch(reject)},reject);
+  const stop=onAuthStateChanged(auth,user=>{stop();if(!user){signInAnonymously(auth).then(result=>resolve(result.user)).catch(reject);return}if(!user.isAnonymous&&!isTeacher(user)){signInAsGuest().then(resolve).catch(reject);return}resolve(user)},reject);
 });
-export const loginWithGoogle=()=>{
+export const loginWithGoogle=async()=>{
   const provider=new GoogleAuthProvider();
   provider.setCustomParameters({prompt:'select_account'});
-  return signInWithPopup(auth,provider);
+  const result=await signInWithPopup(auth,provider);
+  if(!isTeacher(result.user)){
+    await signInAsGuest();
+    throw new Error('ACCOUNT_NOT_ALLOWED');
+  }
+  return result;
 };
 export const logout=()=>signOut(auth).then(()=>signInAnonymously(auth));

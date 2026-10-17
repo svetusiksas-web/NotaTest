@@ -1,6 +1,6 @@
 import{Navigate,Outlet}from'react-router-dom';
-import{auth}from'../services/firebase';
+import{auth,isTeacher}from'../services/firebase';
 
 export function TeacherRoute(){
-  return auth.currentUser&&!auth.currentUser.isAnonymous?<Outlet/>:<Navigate to="/" replace/>;
+  return isTeacher(auth.currentUser)?<Outlet/>:<Navigate to="/" replace/>;
 }

@@ -2,12 +2,12 @@ import{BookOpen,FilePlus2,Sparkles}from'lucide-react';
 import{Link}from'react-router-dom';
 import{Header}from'../components/Header';
 import{subjects}from'../data/subjects';
-import{auth}from'../services/firebase';
+import{auth,isTeacher}from'../services/firebase';
 import{testService}from'../services/storage';
 
 export function Dashboard(){
   const tests=testService.all();
-  const teacher=Boolean(auth.currentUser&&!auth.currentUser.isAnonymous);
+  const teacher=isTeacher(auth.currentUser);
   return <div className="dashboard">
     <Header eyebrow={teacher?'Кабинет преподавателя':'NotaTest'} title={teacher?'Добро пожаловать, Светлана!':'Каталог музыкальных тестов'}/>
     <section className="hero"><div><span className="pill"><Sparkles/> Творческая мастерская</span><h2>{teacher?'Что создадим сегодня?':'Музыкальные тесты'}</h2><p>{teacher?'Соберите красивый музыкальный тест за несколько минут — вручную или вставив весь материал сразу.':'Выберите предмет и откройте интересующий тест для прохождения.'}</p>{teacher&&<div className="actions"><Link className="button primary" to="/editor/new"><FilePlus2/>Создать тест</Link></div>}</div><div className="staff" aria-hidden="true">𝄞<i>♪</i><i>♫</i></div></section>
