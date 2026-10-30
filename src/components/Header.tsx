@@ -1,1 +1,1 @@
-export function Header({eyebrow,title,children}:{eyebrow:string;title:string;children?:React.ReactNode}){return <header className="page-head"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1></div>{children}</header>}
+export function Header({eyebrow,title,children}:{eyebrow?:string;title:string;children?:React.ReactNode}){return <header className="page-head"><div>{eyebrow&&<p className="eyebrow">{eyebrow}</p>}<h1>{title}</h1></div>{children}</header>}

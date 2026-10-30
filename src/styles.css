@@ -13,6 +13,7 @@
 .dashboard .subject-section .section-title{margin-bottom:12px}
 .dashboard .subject-section .section-title h2{font-size:24px}
 .dashboard .subject-section .eyebrow{margin-bottom:5px}
+.dashboard .hero .pill{padding:11px 16px;line-height:1.4;font-size:14px}
 .dashboard .subject-grid{gap:12px}
 .dashboard .subject-card{min-height:92px;padding:17px 19px;border-radius:15px;gap:15px;align-items:center}
 .dashboard .subject-card>span{flex:0 0 42px;width:42px;height:42px;border-radius:13px}
