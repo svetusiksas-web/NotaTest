@@ -1,6 +1,7 @@
 import {initializeApp} from 'firebase/app';
 import {createUserWithEmailAndPassword,getAuth,GoogleAuthProvider,onAuthStateChanged,sendPasswordResetEmail,signInAnonymously,signInWithEmailAndPassword,signInWithPopup,signOut,updatePassword,updateProfile,type User} from 'firebase/auth';
 import {doc,getDoc,getFirestore,serverTimestamp,setDoc,updateDoc} from 'firebase/firestore';
+import {getFunctions} from 'firebase/functions';
 import type{UserProfile}from'../types';
 
 const firebaseConfig={
@@ -15,6 +16,7 @@ const firebaseConfig={
 const app=initializeApp(firebaseConfig);
 export const auth=getAuth(app);
 export const db=getFirestore(app);
+export const functions=getFunctions(app);
 export const TEACHER_EMAIL='svetusiksas@gmail.com';
 export const isAdminUser=(user:User|null|undefined)=>Boolean(user&&!user.isAnonymous&&user.email?.toLowerCase()===TEACHER_EMAIL);
 export const isTeacher=(user:User|null|undefined,profile?:UserProfile|null)=>Boolean(user&&!user.isAnonymous&&(isAdminUser(user)||(profile?.role==='teacher'&&profile.status==='active')));

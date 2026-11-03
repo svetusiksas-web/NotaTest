@@ -39,8 +39,7 @@ service cloud.firestore {
     }
 
     match /tests/{testId} {
-      allow read: if resource.data.status == 'published'
-        || (canTeach() && (isAdmin() || request.auth.uid == resource.data.ownerId));
+      allow read: if canTeach() && (isAdmin() || request.auth.uid == resource.data.ownerId);
       allow create: if canTeach() && request.resource.data.ownerId == request.auth.uid;
       allow update: if canTeach()
         && (isAdmin() || request.auth.uid == resource.data.ownerId)
@@ -49,11 +48,18 @@ service cloud.firestore {
     }
 
     match /attempts/{attemptId} {
-      allow create: if request.auth != null
-        && request.resource.data.ownerId == get(/databases/$(database)/documents/tests/$(request.resource.data.testId)).data.ownerId
-        && get(/databases/$(database)/documents/tests/$(request.resource.data.testId)).data.status == 'published';
       allow read: if canTeach() && (isAdmin() || request.auth.uid == resource.data.ownerId);
-      allow update, delete: if false;
+      allow create, update, delete: if false;
+    }
+
+    match /publicTests/{slug} {
+      allow read: if resource.data.status == 'published';
+      allow write: if false;
+    }
+
+    match /testCatalog/{testId} {
+      allow read: if canTeach();
+      allow write: if false;
     }
   }
 }
