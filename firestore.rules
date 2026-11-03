@@ -58,7 +58,8 @@ service cloud.firestore {
     }
 
     match /testCatalog/{testId} {
-      allow read: if canTeach();
+      // Safe public card metadata only; questions and answer keys live elsewhere.
+      allow read: if true;
       allow write: if false;
     }
   }
