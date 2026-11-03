@@ -7,3 +7,6 @@ export interface QuizTest {id:string;ownerId?:string;slug:string;title:string;su
 export interface Student {firstName:string;lastName:string;group:string;comment:string}
 export type Answer=string|string[]|Record<string,string>;
 export interface Attempt {id:string;testId:string;ownerId?:string;student:Student;answers:Record<string,Answer>;score:number;maxScore:number;percentage:number;grade:number;completedAt:string}
+export type UserRole='admin'|'teacher';
+export type AccountStatus='pending'|'active'|'blocked';
+export interface UserProfile {uid:string;email:string;displayName:string;role:UserRole;status:AccountStatus;createdAt:string;approvedAt?:string;approvedBy?:string}

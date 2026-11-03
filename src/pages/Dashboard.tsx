@@ -2,7 +2,7 @@ import{BookOpen,FilePlus2,Sparkles}from'lucide-react';
 import{Link}from'react-router-dom';
 import{Header}from'../components/Header';
 import{subjects}from'../data/subjects';
-import{auth,isTeacher}from'../services/firebase';
+import{useAuth}from'../contexts/AuthContext';
 import{testService}from'../services/storage';
 
 function formatTestCount(count:number){
@@ -14,7 +14,7 @@ function formatTestCount(count:number){
 
 export function Dashboard(){
   const tests=testService.all();
-  const teacher=isTeacher(auth.currentUser);
+  const{isApprovedTeacher:teacher}=useAuth();
   return <div className="dashboard">
     <Header eyebrow={teacher?undefined:'NotaTest'} title={teacher?'Добро пожаловать!':'Каталог музыкальных тестов'}/>
     <section className="hero"><div><span className="pill"><Sparkles/> ТВОРЧЕСКАЯ МАСТЕРСКАЯ КОРОВЧЕНКО СВЕТЛАНЫ АЛЕКСАНДРОВНЫ</span>{teacher&&<h2>Что создадим сегодня?</h2>}<p>{teacher?'Соберите красивый музыкальный тест за несколько минут — вручную или вставив весь материал сразу.':'Выберите предмет и откройте интересующий тест для прохождения.'}</p>{teacher&&<div className="actions"><Link className="button primary" to="/editor/new"><FilePlus2/>Создать тест</Link></div>}</div><div className="staff" aria-hidden="true">𝄞<i>♪</i><i>♫</i></div></section>

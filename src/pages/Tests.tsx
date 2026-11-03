@@ -5,13 +5,13 @@ import{Header}from'../components/Header';
 import{demo}from'../data/demo';
 import{subjects}from'../data/subjects';
 import{copyStudentTestUrl}from'../lib/publicLink';
-import{auth,isTeacher}from'../services/firebase';
+import{useAuth}from'../contexts/AuthContext';
 import{testService}from'../services/storage';
 import type{QuizTest,TestStatus}from'../types';
 
 export function Tests(){
   const[,refresh]=useState(0);const[copied,setCopied]=useState('');const[search,setSearch]=useState('');const[status,setStatus]=useState<TestStatus|''>('');const[params,setParams]=useSearchParams();
-  const teacher=isTeacher(auth.currentUser);const canManage=(test:QuizTest)=>teacher&&(!test.ownerId||test.ownerId===auth.currentUser?.uid);
+  const{user,isAdmin,isApprovedTeacher:teacher}=useAuth();const canManage=(test:QuizTest)=>teacher&&(isAdmin||!test.ownerId||test.ownerId===user?.uid);
   let tests=testService.all();if(!tests.length){testService.save(demo);tests=[demo]}
   const subject=params.get('subject')??'';
   const shown=tests.filter(test=>(!subject||test.subject.trim()===subject)&&(!status||test.status===status)&&(!search.trim()||test.title.toLocaleLowerCase('ru').includes(search.trim().toLocaleLowerCase('ru')))).sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt));

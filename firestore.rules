@@ -1,22 +1,58 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isTeacher() {
-      return request.auth != null
+    function signedIn() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function isAdmin() {
+      return signedIn()
         && request.auth.token.email == 'svetusiksas@gmail.com'
         && request.auth.token.email_verified == true;
     }
 
-    match /tests/{testId} {
-      allow read: if resource.data.status == 'published' || (isTeacher() && request.auth.uid == resource.data.ownerId);
-      allow create: if isTeacher() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isTeacher() && request.auth.uid == resource.data.ownerId;
+    function profile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
     }
+
+    function isActiveTeacher() {
+      return signedIn() && profile().role == 'teacher' && profile().status == 'active';
+    }
+
+    function canTeach() {
+      return isAdmin() || isActiveTeacher();
+    }
+
+    match /profiles/{uid} {
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'teacher'
+        && request.resource.data.status == 'pending';
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow update: if isAdmin()
+        || (signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']));
+      allow delete: if false;
+    }
+
+    match /tests/{testId} {
+      allow read: if resource.data.status == 'published'
+        || (canTeach() && (isAdmin() || request.auth.uid == resource.data.ownerId));
+      allow create: if canTeach() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if canTeach()
+        && (isAdmin() || request.auth.uid == resource.data.ownerId)
+        && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if canTeach() && (isAdmin() || request.auth.uid == resource.data.ownerId);
+    }
+
     match /attempts/{attemptId} {
       allow create: if request.auth != null
         && request.resource.data.ownerId == get(/databases/$(database)/documents/tests/$(request.resource.data.testId)).data.ownerId
         && get(/databases/$(database)/documents/tests/$(request.resource.data.testId)).data.status == 'published';
-      allow read: if isTeacher() && request.auth.uid == resource.data.ownerId;
+      allow read: if canTeach() && (isAdmin() || request.auth.uid == resource.data.ownerId);
       allow update, delete: if false;
     }
   }
