@@ -21,7 +21,13 @@ function app(){
 const db=()=>getFirestore(app());
 
 function cors(req,res){
-  const allowed=new Set(['https://notatest-f208b.web.app','https://notatest-f208b.firebaseapp.com',process.env.ALLOWED_ORIGIN].filter(Boolean));
+  const configuredOrigins=String(process.env.ALLOWED_ORIGIN??'').split(',').map(value=>value.trim()).filter(Boolean);
+  const allowed=new Set([
+    'https://notatest-f208b.web.app',
+    'https://notatest-f208b.firebaseapp.com',
+    'https://svetusiksas-web.github.io',
+    ...configuredOrigins
+  ]);
   const origin=req.headers.origin;
   if(origin&&allowed.has(origin))res.setHeader('Access-Control-Allow-Origin',origin);
   res.setHeader('Vary','Origin');
