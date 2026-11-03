@@ -52,6 +52,7 @@ body {
 .share-panel input { min-width:0; width:100%; }
 .test-card { display:flex; min-width:0; flex-direction:column; }
 .test-card > p { margin-bottom:18px; }
+.owner-label { display:block; margin-top:7px; color:#7770a8; overflow-wrap:anywhere; }
 .test-card .card-actions { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; margin-top:auto; align-items:center; }
 .test-card .card-actions .button { grid-column:1/-1; width:100%; min-width:0; margin-right:0; padding:10px; font-size:12px; }
 .test-card .card-actions > button,.test-card .card-actions > a:not(.button) { display:inline-flex; min-width:34px; align-items:center; justify-content:center; padding:8px 7px; white-space:nowrap; }

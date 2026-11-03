@@ -6,7 +6,7 @@ export interface Question {id:string;type:QuestionType;text:string;points:number
 export interface QuizTest {id:string;ownerId?:string;slug:string;title:string;subject:string;grade:string;topic:string;description:string;instructions:string;status:TestStatus;questions:Question[];createdAt:string;updatedAt:string}
 export interface Student {firstName:string;lastName:string;group:string;comment:string}
 export type Answer=string|string[]|Record<string,string>;
-export interface Attempt {id:string;testId:string;ownerId?:string;student:Student;answers:Record<string,Answer>;score:number;maxScore:number;percentage:number;grade:number;completedAt:string}
+export interface Attempt {id:string;testId:string;ownerId?:string;testTitle?:string;student:Student;answers:Record<string,Answer>;score:number;maxScore:number;percentage:number;grade:number;completedAt:string}
 export type UserRole='admin'|'teacher';
 export type AccountStatus='pending'|'active'|'blocked';
 export interface UserProfile {uid:string;email:string;displayName:string;role:UserRole;status:AccountStatus;createdAt:string;approvedAt?:string;approvedBy?:string}
