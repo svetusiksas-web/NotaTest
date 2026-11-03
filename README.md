@@ -67,7 +67,7 @@ firebase deploy --only firestore:rules
 
 Перед включением новых правил ранее опубликованные тесты необходимо повторно опубликовать или перенести проверяемой миграцией, чтобы для существующих ссылок появились документы `publicTests`. До этой операции не следует развёртывать правила, закрывающие публичное чтение старой коллекции `tests`.
 
-Для Vercel необходимо настроить серверные переменные `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` и `ALLOWED_ORIGIN`. Значения берутся из ключа Firebase Admin SDK; JSON-файл ключа нельзя добавлять в репозиторий. При сборке frontend задаётся `VITE_API_BASE_URL` с адресом Vercel-проекта.
+Для Vercel необходимо настроить серверные переменные `FIREBASE_SERVICE_ACCOUNT_JSON` и `ALLOWED_ORIGIN`. Первая содержит полный ключ Firebase Admin SDK; JSON-файл ключа нельзя добавлять в репозиторий. Отдельные `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` и `FIREBASE_PRIVATE_KEY` также поддерживаются как резервный вариант. При сборке frontend задаётся `VITE_API_BASE_URL` с адресом Vercel-проекта.
 
 ## Формат массового импорта
 

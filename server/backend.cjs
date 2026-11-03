@@ -10,9 +10,11 @@ const norm=value=>String(value??'').trim().replace(/\s+/g,' ').toLocaleLowerCase
 
 function app(){
   if(getApps().length)return getApps()[0];
-  const projectId=process.env.FIREBASE_PROJECT_ID;
-  const clientEmail=process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey=process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g,'\n');
+  let serviceAccount={};
+  if(process.env.FIREBASE_SERVICE_ACCOUNT_JSON){try{serviceAccount=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)}catch{throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON_INVALID')}}
+  const projectId=serviceAccount.project_id??process.env.FIREBASE_PROJECT_ID;
+  const clientEmail=serviceAccount.client_email??process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey=(serviceAccount.private_key??process.env.FIREBASE_PRIVATE_KEY)?.replace(/\\n/g,'\n');
   if(!projectId||!clientEmail||!privateKey)throw new Error('FIREBASE_ADMIN_NOT_CONFIGURED');
   return initializeApp({credential:cert({projectId,clientEmail,privateKey}),projectId});
 }
