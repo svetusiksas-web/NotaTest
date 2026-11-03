@@ -1,7 +1,7 @@
 const{cert,getApps,initializeApp}=require('firebase-admin/app');
 const{getAuth}=require('firebase-admin/auth');
 const{FieldValue,getFirestore}=require('firebase-admin/firestore');
-const{randomUUID}=require('node:crypto');
+const{createHash,randomUUID}=require('node:crypto');
 
 const ADMIN_EMAIL='svetusiksas@gmail.com';
 const clean=value=>JSON.parse(JSON.stringify(value));
@@ -19,6 +19,10 @@ function app(){
   return initializeApp({credential:cert({projectId,clientEmail,privateKey}),projectId});
 }
 const db=()=>getFirestore(app());
+const telegramToken=()=>process.env.TELEGRAM_TEACHER_BOT_TOKEN;
+const telegramSecret=()=>{const token=telegramToken();return token?createHash('sha256').update(token).digest('hex'):''};
+const telegramApi=async(method,payload)=>{const token=telegramToken();if(!token)throw new Error('TELEGRAM_TEACHER_BOT_NOT_CONFIGURED');const response=await fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const body=await response.json().catch(()=>({}));if(!response.ok||!body.ok)throw new Error(body.description??`TELEGRAM_HTTP_${response.status}`);return body.result};
+const escapeHtml=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 
 function cors(req,res){
   const configuredOrigins=String(process.env.ALLOWED_ORIGIN??'').split(',').map(value=>value.trim()).filter(Boolean);
@@ -99,7 +103,59 @@ async function submitAttempt({testId,student,answers}){
   const snapshot=await db().doc(`tests/${testId}`).get();if(!snapshot.exists||snapshot.data().status!=='published')throw Object.assign(new Error('Тест недоступен.'),{status:404});
   const test=snapshot.data();const maxScore=test.questions.length;const score=test.questions.reduce((total,question)=>total+scoreQuestion(question,answers[question.id]),0);const percentage=maxScore?Math.round(score/maxScore*100):0;
   const attempt={id:randomUUID(),testId:test.id,ownerId:test.ownerId,testTitle:test.title,student:clean(student),answers:clean(answers),score,maxScore,percentage,grade:Math.round(Math.max(0,Math.min(100,percentage))/10),completedAt:new Date().toISOString(),notificationStatus:'pending',createdAt:FieldValue.serverTimestamp()};
-  await db().doc(`attempts/${attempt.id}`).set(attempt);const responseAttempt={...attempt};delete responseAttempt.createdAt;return{attempt:responseAttempt,reviewTest:test};
+  await db().doc(`attempts/${attempt.id}`).set(attempt);
+  try{const notified=await notifyTeacher(attempt,test);await db().doc(`attempts/${attempt.id}`).update({notificationStatus:notified?'sent':'not_connected'})}catch(error){console.error('Teacher Telegram notification failed',error);await db().doc(`attempts/${attempt.id}`).update({notificationStatus:'failed'}).catch(()=>{})}
+  const responseAttempt={...attempt};delete responseAttempt.createdAt;return{attempt:responseAttempt,reviewTest:test};
+}
+
+async function notifyTeacher(attempt,test){
+  if(!test.ownerId)return false;
+  const connection=await db().doc(`teacherTelegram/${test.ownerId}`).get();
+  if(!connection.exists)return false;
+  const chatId=connection.data().chatId;
+  const studentName=`${attempt.student.lastName} ${attempt.student.firstName}`.trim();
+  const group=attempt.student.group?`\nГруппа: <b>${escapeHtml(attempt.student.group)}</b>`:'';
+  await telegramApi('sendMessage',{chat_id:chatId,parse_mode:'HTML',text:`🎼 <b>Новый результат NotaTest</b>\n\nУченик: <b>${escapeHtml(studentName)}</b>${group}\nТест: <b>${escapeHtml(test.title)}</b>\nБаллы: <b>${attempt.score} из ${attempt.maxScore}</b>\nРезультат: <b>${attempt.percentage}%</b>\nОценка: <b>${attempt.grade}</b>`});
+  return true;
+}
+
+async function ensureTelegramWebhook(){
+  const origin=String(process.env.PUBLIC_API_ORIGIN??'https://nota-test-khaki.vercel.app').replace(/\/$/,'');
+  await telegramApi('setWebhook',{url:`${origin}/api/telegram-webhook`,secret_token:telegramSecret(),allowed_updates:['message'],drop_pending_updates:false});
+}
+
+async function teacherTelegram(actor,{action}){
+  const ref=db().doc(`teacherTelegram/${actor.uid}`);
+  if(action==='status'){const snapshot=await ref.get();if(!snapshot.exists)return{connected:false};const data=snapshot.data();return{connected:true,username:data.username??'',firstName:data.firstName??'',connectedAt:data.connectedAt??''}}
+  if(action==='connect'){
+    await ensureTelegramWebhook();
+    const code=randomUUID();const expiresAt=Date.now()+15*60*1000;
+    await db().doc(`telegramLinks/${code}`).set({ownerId:actor.uid,expiresAt,createdAt:FieldValue.serverTimestamp()});
+    return{url:`https://t.me/NotaTestTeachersBot?start=${code}`,expiresAt};
+  }
+  if(action==='disconnect'){await ref.delete();return{connected:false}}
+  if(action==='test'){
+    const snapshot=await ref.get();if(!snapshot.exists)throw Object.assign(new Error('Сначала подключите Telegram.'),{status:400});
+    await telegramApi('sendMessage',{chat_id:snapshot.data().chatId,text:'✅ NotaTest подключён. Сюда будут приходить результаты только ваших тестов.'});return{ok:true};
+  }
+  throw Object.assign(new Error('Неизвестное действие.'),{status:400});
+}
+
+async function telegramWebhook(req,res){
+  if(req.method!=='POST')return res.status(405).json({ok:false});
+  if(!telegramSecret()||req.headers['x-telegram-bot-api-secret-token']!==telegramSecret())return res.status(403).json({ok:false});
+  try{
+    const message=req.body?.message;const text=String(message?.text??'');const match=text.match(/^\/start(?:@\w+)?\s+([\w-]+)$/);
+    if(!message?.chat?.id||message.chat.type!=='private')return res.status(200).json({ok:true});
+    if(!match){await telegramApi('sendMessage',{chat_id:message.chat.id,text:'Откройте персональную ссылку «Подключить Telegram» в профиле NotaTest.'});return res.status(200).json({ok:true})}
+    const linkRef=db().doc(`telegramLinks/${match[1]}`);const link=await linkRef.get();
+    if(!link.exists||Number(link.data().expiresAt)<Date.now()){await telegramApi('sendMessage',{chat_id:message.chat.id,text:'Ссылка недействительна или истекла. Создайте новую ссылку в профиле NotaTest.'});return res.status(200).json({ok:true})}
+    const ownerId=link.data().ownerId;
+    await db().doc(`teacherTelegram/${ownerId}`).set({ownerId,chatId:String(message.chat.id),username:message.from?.username??'',firstName:message.from?.first_name??'',connectedAt:new Date().toISOString()});
+    await linkRef.delete();
+    await telegramApi('sendMessage',{chat_id:message.chat.id,text:'✅ Telegram подключён к NotaTest. Теперь сюда будут приходить результаты только ваших тестов.'});
+    return res.status(200).json({ok:true});
+  }catch(error){console.error('Telegram webhook failed',error);return res.status(200).json({ok:false})}
 }
 
 async function migratePublishedTests(actor){
@@ -110,4 +166,4 @@ async function migratePublishedTests(actor){
 
 function handler(action,options={}){return async(req,res)=>{if(cors(req,res))return;if(req.method!=='POST')return res.status(405).json({error:'Метод не поддерживается.'});try{const actor=await authenticate(req,options);const result=await action(actor,req.body??{});return res.status(200).json(result)}catch(error){console.error(error);return res.status(error.status??500).json({error:error.status?error.message:'Ошибка сервера.'})}}}
 
-module.exports={handler,publishTest,submitAttempt,migratePublishedTests};
+module.exports={handler,publishTest,submitAttempt,migratePublishedTests,teacherTelegram,telegramWebhook};

@@ -22,6 +22,13 @@ export const testService={all:()=>readTests().map(withUnitPoints),get:(idOrSlug:
 export async function loadPublicTest(slug:string){const snapshot=await getDoc(doc(db,'publicTests',slug));if(snapshot.exists())return withUnitPoints(snapshot.data() as QuizTest);try{const legacy=await getDocs(query(collection(db,'tests'),where('slug','==',slug)));return legacy.empty?undefined:withUnitPoints(legacy.docs[0].data() as QuizTest)}catch{return undefined}}
 export async function submitAttempt(test:QuizTest,student:Attempt['student'],answers:Attempt['answers']){const response=await apiCall<{attempt:Attempt;reviewTest:QuizTest}>('submit-attempt',{testId:test.id,student,answers});const next=response.attempt;writeAttempts([next,...readAttempts().filter(item=>item.id!==next.id)]);return response}
 export const migratePublishedTests=()=>apiCall<{scanned:number;migrated:number}>('migrate-published-tests',{});
+export type TelegramConnection={connected:boolean;username?:string;firstName?:string;connectedAt?:string};
+export const teacherTelegramService={
+  status:()=>apiCall<TelegramConnection>('teacher-telegram',{action:'status'}),
+  connect:()=>apiCall<{url:string;expiresAt:number}>('teacher-telegram',{action:'connect'}),
+  disconnect:()=>apiCall<TelegramConnection>('teacher-telegram',{action:'disconnect'}),
+  test:()=>apiCall<{ok:boolean}>('teacher-telegram',{action:'test'})
+};
 export const resultService={all:()=>readAttempts(),save:async(a:Attempt)=>{await waitForUser();const test=testService.get(a.testId);if(!test?.ownerId)throw new Error('У теста не указан преподаватель. Его нужно повторно опубликовать из кабинета.');const next={...a,ownerId:test.ownerId,testTitle:test.title};await setDoc(doc(db,'attempts',a.id),firestoreData(next));writeAttempts([next,...readAttempts().filter(item=>item.id!==next.id)]);return next}};
 export async function refreshResults(){const user=await waitForUser();if(user.isAnonymous){writeAttempts([]);return[]}const source=isAdminUser(user)?collection(db,'attempts'):query(collection(db,'attempts'),where('ownerId','==',user.uid));const attempts=(await getDocs(source)).docs.map(item=>item.data() as Attempt).sort((a,b)=>b.completedAt.localeCompare(a.completedAt));writeAttempts(attempts);return attempts}
 export async function getProfileNames(){const user=await waitForUser();if(!isAdminUser(user))return{};const profiles=await getDocs(collection(db,'profiles'));return Object.fromEntries(profiles.docs.map(item=>[item.id,String(item.data().displayName||item.data().email||item.id)])) as Record<string,string>}
