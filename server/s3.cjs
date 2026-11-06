@@ -1,4 +1,4 @@
-const {S3Client,PutObjectCommand,GetObjectCommand,HeadObjectCommand}=require('@aws-sdk/client-s3');
+const {S3Client,PutObjectCommand,GetObjectCommand,HeadObjectCommand,ListObjectsV2Command}=require('@aws-sdk/client-s3');
 const {getSignedUrl}=require('@aws-sdk/s3-request-presigner');
 
 const required=name=>{const value=process.env[name];if(!value)throw Object.assign(new Error(`${name}_NOT_CONFIGURED`),{status:503});return value};
@@ -9,4 +9,5 @@ const uploadUrl=(key,contentType)=>getSignedUrl(client(),new PutObjectCommand({B
 const downloadUrl=key=>getSignedUrl(client(),new GetObjectCommand({Bucket:config().bucket,Key:key,ResponseCacheControl:'private, max-age=300'}),{expiresIn:900});
 const head=key=>client().send(new HeadObjectCommand({Bucket:config().bucket,Key:key}));
 async function peek(key){const response=await client().send(new GetObjectCommand({Bucket:config().bucket,Key:key,Range:'bytes=0-31'}));return Buffer.from(await response.Body.transformToByteArray())}
-module.exports={uploadUrl,downloadUrl,head,peek};
+async function listAll(prefix='media/'){prefix=prefix||'media/';const objects=[];let ContinuationToken;do{const page=await client().send(new ListObjectsV2Command({Bucket:config().bucket,Prefix:prefix,ContinuationToken}));objects.push(...(page.Contents??[]));ContinuationToken=page.IsTruncated?page.NextContinuationToken:undefined}while(ContinuationToken);return objects}
+module.exports={uploadUrl,downloadUrl,head,peek,listAll};
