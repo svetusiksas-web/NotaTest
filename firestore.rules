@@ -62,5 +62,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+
+    match /mediaFiles/{mediaId} {
+      // Metadata is managed only by authenticated Vercel functions.
+      allow read, write: if false;
+    }
   }
 }

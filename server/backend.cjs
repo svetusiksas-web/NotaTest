@@ -2,6 +2,7 @@ const{cert,getApps,initializeApp}=require('firebase-admin/app');
 const{getAuth}=require('firebase-admin/auth');
 const{FieldValue,getFirestore}=require('firebase-admin/firestore');
 const{createHash,randomUUID}=require('node:crypto');
+const s3=require('./s3.cjs');
 
 const ADMIN_EMAIL='svetusiksas@gmail.com';
 const clean=value=>JSON.parse(JSON.stringify(value));
@@ -23,6 +24,21 @@ const telegramToken=()=>process.env.TELEGRAM_TEACHER_BOT_TOKEN;
 const telegramSecret=()=>{const token=telegramToken();return token?createHash('sha256').update(token).digest('hex'):''};
 const telegramApi=async(method,payload)=>{const token=telegramToken();if(!token)throw new Error('TELEGRAM_TEACHER_BOT_NOT_CONFIGURED');const response=await fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const body=await response.json().catch(()=>({}));if(!response.ok||!body.ok)throw new Error(body.description??`TELEGRAM_HTTP_${response.status}`);return body.result};
 const escapeHtml=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+const IMAGE_TYPES=new Set(['image/jpeg','image/png','image/webp']);
+const AUDIO_TYPES=new Set(['audio/mpeg','audio/wav','audio/x-wav','audio/mp4','audio/x-m4a','audio/ogg']);
+const safeName=value=>String(value??'file').normalize('NFKC').replace(/[^\p{L}\p{N}._-]+/gu,'-').slice(0,100)||'file';
+const containsMedia=(value,id)=>JSON.stringify(value).includes(`\"mediaId\":\"${id}\"`);
+function detectedType(buffer){const ascii=buffer.toString('ascii');if(buffer[0]===0xff&&buffer[1]===0xd8&&buffer[2]===0xff)return'image/jpeg';if(buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))return'image/png';if(ascii.startsWith('RIFF')&&ascii.slice(8,12)==='WEBP')return'image/webp';if(ascii.startsWith('RIFF')&&ascii.slice(8,12)==='WAVE')return'audio/wav';if(ascii.startsWith('OggS'))return'audio/ogg';if(ascii.startsWith('ID3')||(buffer[0]===0xff&&(buffer[1]&0xe0)===0xe0))return'audio/mpeg';if(ascii.slice(4,8)==='ftyp')return'audio/mp4';return''}
+
+async function createMediaUpload(actor,{name,contentType,size,kind}){
+  const allowed=kind==='image'?IMAGE_TYPES:AUDIO_TYPES;const max=kind==='image'?5*1024*1024:25*1024*1024;
+  if(!allowed.has(contentType)||!Number.isSafeInteger(size)||size<1||size>max)throw Object.assign(new Error('Недопустимый тип или размер файла.'),{status:400});
+  const mediaId=randomUUID();const objectKey=`media/${actor.uid}/${mediaId}/${safeName(name)}`;const media={mediaId,objectKey,kind,name:safeName(name),contentType,size};
+  await db().doc(`mediaFiles/${mediaId}`).set({...media,ownerId:actor.uid,status:'pending',createdAt:FieldValue.serverTimestamp()});
+  return{media,uploadUrl:await s3.uploadUrl(objectKey,contentType)};
+}
+async function completeMediaUpload(actor,{mediaId}){const ref=db().doc(`mediaFiles/${mediaId}`);const snapshot=await ref.get();if(!snapshot.exists)throw Object.assign(new Error('Файл не найден.'),{status:404});const media=snapshot.data();if(!actor.admin&&media.ownerId!==actor.uid)throw Object.assign(new Error('Нет доступа к файлу.'),{status:403});const object=await s3.head(media.objectKey);const actualType=detectedType(await s3.peek(media.objectKey));const declaredMatches=media.contentType==='audio/x-wav'?actualType==='audio/wav':media.contentType==='audio/x-m4a'?actualType==='audio/mp4':actualType===media.contentType;if(Number(object.ContentLength)!==media.size||object.ContentType!==media.contentType||!declaredMatches)throw Object.assign(new Error('Параметры или фактический тип файла не совпадают.'),{status:400});await ref.update({status:'ready',verifiedAt:FieldValue.serverTimestamp()});return{media:{mediaId:media.mediaId,objectKey:media.objectKey,kind:media.kind,name:media.name,contentType:media.contentType,size:media.size},url:await s3.downloadUrl(media.objectKey)}}
+async function mediaUrls(actor,{mediaIds,testId,slug}){if(!Array.isArray(mediaIds)||mediaIds.length>100)throw Object.assign(new Error('Некорректный список файлов.'),{status:400});let context;if(slug){const snapshot=await db().doc(`publicTests/${slug}`).get();if(!snapshot.exists||snapshot.data().status!=='published')throw Object.assign(new Error('Тест недоступен.'),{status:404});context=snapshot.data()}else if(testId){const snapshot=await db().doc(`tests/${testId}`).get();if(!snapshot.exists)throw Object.assign(new Error('Тест не найден.'),{status:404});context=snapshot.data();if(!actor.admin&&context.ownerId!==actor.uid)throw Object.assign(new Error('Нет доступа к тесту.'),{status:403})}else throw Object.assign(new Error('Не указан контекст доступа.'),{status:400});const urls={};for(const mediaId of [...new Set(mediaIds)]){if(!containsMedia(context,mediaId))throw Object.assign(new Error('Файл не используется в этом тесте.'),{status:403});const snapshot=await db().doc(`mediaFiles/${mediaId}`).get();if(!snapshot.exists||snapshot.data().status!=='ready')throw Object.assign(new Error('Файл недоступен.'),{status:404});urls[mediaId]=await s3.downloadUrl(snapshot.data().objectKey)}return{urls}}
 
 function cors(req,res){
   const configuredOrigins=String(process.env.ALLOWED_ORIGIN??'').split(',').map(value=>value.trim()).filter(Boolean);
@@ -63,8 +79,8 @@ function prepareQuestion(question){
   if(question.type==='matching'){
     const tokens=(question.pairs??[]).map(pair=>({pair,id:question.matchingAnswerMap?.[pair.id]??randomUUID()}));
     privateQuestion.matchingAnswerMap=Object.fromEntries(tokens.map(({pair,id})=>[pair.id,id]));
-    publicQuestion.pairs=(question.pairs??[]).map(pair=>({id:pair.id,left:pair.left,right:'',leftImageUrl:pair.leftImageUrl,leftImageName:pair.leftImageName,leftAudioUrl:pair.leftAudioUrl,leftAudioName:pair.leftAudioName}));
-    publicQuestion.matchingOptions=shuffle(tokens.map(({pair,id})=>({id,text:pair.right,imageUrl:pair.rightImageUrl,imageName:pair.rightImageName,audioUrl:pair.rightAudioUrl,audioName:pair.rightAudioName})));
+    publicQuestion.pairs=(question.pairs??[]).map(pair=>({id:pair.id,left:pair.left,right:'',leftImageUrl:pair.leftImageUrl,leftImageName:pair.leftImageName,leftImageMedia:pair.leftImageMedia,leftAudioUrl:pair.leftAudioUrl,leftAudioName:pair.leftAudioName,leftAudioMedia:pair.leftAudioMedia}));
+    publicQuestion.matchingOptions=shuffle(tokens.map(({pair,id})=>({id,text:pair.right,imageUrl:pair.rightImageUrl,imageName:pair.rightImageName,imageMedia:pair.rightImageMedia,audioUrl:pair.rightAudioUrl,audioName:pair.rightAudioName,audioMedia:pair.rightAudioMedia})));
   }
   return{privateQuestion,publicQuestion};
 }
@@ -79,11 +95,16 @@ async function representations(test,actor){
   return{privateTest,publicTest,catalog};
 }
 
+async function normalizeMediaReferences(value,actor){
+  const copy=clean(value);const visit=async node=>{if(!node||typeof node!=='object')return;for(const[key,item]of Object.entries(node)){if(key.endsWith('Url')&&typeof item==='string'&&item.includes('X-Amz-')){const match=decodeURIComponent(item).match(/media\/[^/]+\/([0-9a-f-]{36})\//i);if(!match)continue;const snapshot=await db().doc(`mediaFiles/${match[1]}`).get();if(!snapshot.exists)throw Object.assign(new Error('Метаданные медиафайла не найдены.'),{status:400});const data=snapshot.data();if(!actor.admin&&data.ownerId!==actor.uid)throw Object.assign(new Error('Нельзя использовать чужой файл.'),{status:403});const prefix=key.slice(0,-3);node[`${prefix}Media`]={mediaId:data.mediaId,objectKey:data.objectKey,kind:data.kind,name:data.name,contentType:data.contentType,size:data.size};delete node[key]}else await visit(item)}};await visit(copy);return copy;
+}
+async function normalizeMediaTest(actor,{test}){if(!test?.id)throw Object.assign(new Error('Тест не указан.'),{status:400});const existing=await db().doc(`tests/${test.id}`).get();const owner=existing.exists?existing.data().ownerId:test.ownerId??actor.uid;if(!actor.admin&&owner!==actor.uid)throw Object.assign(new Error('Нельзя изменять чужой тест.'),{status:403});return{test:await normalizeMediaReferences({...test,ownerId:owner},actor)}}
+
 async function publishTest(actor,incoming){
   if(!incoming?.id||!incoming?.slug||!incoming?.title||!Array.isArray(incoming.questions)||!incoming.questions.length)throw Object.assign(new Error('Тест заполнен не полностью.'),{status:400});
   const ref=db().doc(`tests/${incoming.id}`);const existing=await ref.get();const existingOwner=existing.exists?existing.data().ownerId:null;
   if(existingOwner&&!actor.admin&&existingOwner!==actor.uid)throw Object.assign(new Error('Нельзя публиковать чужой тест.'),{status:403});
-  const test=clean({...incoming,ownerId:existingOwner??actor.uid,status:'published',updatedAt:new Date().toISOString()});
+  const test=await normalizeMediaReferences({...incoming,ownerId:existingOwner??actor.uid,status:'published',updatedAt:new Date().toISOString()},actor);
   const{privateTest,publicTest,catalog}=await representations(test,actor);const batch=db().batch();
   batch.set(ref,privateTest);batch.set(db().doc(`publicTests/${test.slug}`),publicTest);batch.set(db().doc(`testCatalog/${test.id}`),catalog);await batch.commit();
   return{test:privateTest};
@@ -166,4 +187,4 @@ async function migratePublishedTests(actor){
 
 function handler(action,options={}){return async(req,res)=>{if(cors(req,res))return;if(req.method!=='POST')return res.status(405).json({error:'Метод не поддерживается.'});try{const actor=await authenticate(req,options);const result=await action(actor,req.body??{});return res.status(200).json(result)}catch(error){console.error(error);return res.status(error.status??500).json({error:error.status?error.message:'Ошибка сервера.'})}}}
 
-module.exports={handler,publishTest,submitAttempt,migratePublishedTests,teacherTelegram,telegramWebhook};
+module.exports={handler,publishTest,submitAttempt,migratePublishedTests,teacherTelegram,telegramWebhook,createMediaUpload,completeMediaUpload,mediaUrls,normalizeMediaTest};
