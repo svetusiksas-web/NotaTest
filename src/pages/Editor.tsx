@@ -8,7 +8,7 @@ import {attachMediaByOrder, importMediaFiles, type ImportedMedia} from '../lib/m
 import {parseQuestions} from '../lib/parser';
 import {copyStudentTestUrl, studentTestUrl} from '../lib/publicLink';
 import {auth} from '../services/firebase';
-import {testService} from '../services/storage';
+import {hydrateEditorTest, testService} from '../services/storage';
 import type {Option, Pair, Question, QuestionType, QuizTest} from '../types';
 
 const labels:Record<QuestionType,string>={single:'Один ответ',multiple:'Несколько ответов',short:'Короткий ответ',matching:'Сопоставление',ordering:'Последовательность'};
@@ -22,6 +22,7 @@ export function Editor(){
   const [importOpen,setImportOpen]=useState(params.has('import')); const [raw,setRaw]=useState('');
   const [unrecognized,setUnrecognized]=useState<string[]>([]); const [media,setMedia]=useState<ImportedMedia[]>([]); const [mediaError,setMediaError]=useState(''); const [saved,setSaved]=useState(true);
   const [publishing,setPublishing]=useState(false); const [copied,setCopied]=useState(false);
+  useEffect(()=>{if(!existing)return;void hydrateEditorTest(existing).then(value=>setTest(value)).catch(error=>console.warn('Не удалось обновить ссылки медиафайлов',error))},[existing?.id]);
   useEffect(()=>{if(!saved){const timer=setTimeout(()=>save(),900);return()=>clearTimeout(timer)}},[test,saved]);
   const change=(patch:Partial<QuizTest>)=>{setTest(t=>({...t,...patch}));setSaved(false)};
   const save=()=>{const next={...test,slug:test.slug||slugify(test.title),updatedAt:new Date().toISOString()} as QuizTest;try{testService.save(next);setTest(next);setSaved(true);if(routeId==='new')nav(`/editor/${next.id}`,{replace:true})}catch{alert('Не удалось сохранить тест. Уменьшите добавленные медиафайлы.')}};

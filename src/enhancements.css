@@ -113,3 +113,4 @@ body {
   .hero { padding:28px 24px; border-radius:22px; }
   .hero h2 { font-size:36px; }
 }
+.review-media{display:grid;gap:10px;margin:12px 0 16px}.review-media img{display:block;max-width:min(100%,560px);max-height:420px;object-fit:contain;border-radius:12px}.review-media audio{width:min(100%,560px)}
