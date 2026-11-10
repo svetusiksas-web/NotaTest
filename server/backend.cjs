@@ -149,6 +149,14 @@ async function submitAttempt({testId,student,answers}){
   const responseAttempt={...attempt};delete responseAttempt.createdAt;return{attempt:responseAttempt,reviewTest:test};
 }
 
+async function deleteAttempts(actor,{attemptIds}){
+  const ids=[...new Set(Array.isArray(attemptIds)?attemptIds.filter(value=>typeof value==='string'&&value):[])];
+  if(!ids.length||ids.length>100)throw Object.assign(new Error('Выберите от 1 до 100 результатов.'),{status:400});
+  const refs=ids.map(id=>db().doc(`attempts/${id}`));const snapshots=await db().getAll(...refs);
+  for(const snapshot of snapshots){if(!snapshot.exists)continue;if(!actor.admin&&snapshot.data().ownerId!==actor.uid)throw Object.assign(new Error('Нельзя удалить чужой результат.'),{status:403})}
+  const batch=db().batch();let deleted=0;snapshots.forEach(snapshot=>{if(snapshot.exists){batch.delete(snapshot.ref);deleted++}});await batch.commit();return{deleted};
+}
+
 async function notifyTeacher(attempt,test){
   if(!test.ownerId)return false;
   const connection=await db().doc(`teacherTelegram/${test.ownerId}`).get();
@@ -207,4 +215,4 @@ async function migratePublishedTests(actor){
 
 function handler(action,options={}){return async(req,res)=>{if(cors(req,res))return;if(req.method!=='POST')return res.status(405).json({error:'Метод не поддерживается.'});try{const actor=await authenticate(req,options);const result=await action(actor,req.body??{});return res.status(200).json(result)}catch(error){console.error(error);return res.status(error.status??500).json({error:error.status?error.message:'Ошибка сервера.'})}}}
 
-module.exports={handler,publishTest,submitAttempt,migratePublishedTests,teacherTelegram,telegramWebhook,createMediaUpload,completeMediaUpload,mediaUrls,normalizeMediaTest,storageAdmin,uploadSettings};
+module.exports={handler,publishTest,deleteAttempts,submitAttempt,migratePublishedTests,teacherTelegram,telegramWebhook,createMediaUpload,completeMediaUpload,mediaUrls,normalizeMediaTest,storageAdmin,uploadSettings};
