@@ -6,6 +6,8 @@ export function scoreQuestion(q:Question,a:Answer|undefined){
   if(q.type==='multiple'){if(!Array.isArray(a))return 0;const selected=[...new Set(a)].sort();const correct=(q.options??[]).filter(o=>o.isCorrect).map(o=>o.id).sort();return correct.length>0&&selected.length===correct.length&&selected.every((id,index)=>id===correct[index])?1:0}
   if(q.type==='short')return q.acceptedAnswers?.some(v=>norm(v)===norm(a as string))?1:0;
   if(q.type==='ordering')return JSON.stringify(a)===JSON.stringify(q.items)?1:0;
+  if(q.type==='sorting'){const answer=a as Record<string,string>;return (q.sortItems?.length??0)>0&&q.sortItems!.every(item=>answer[item.id]===item.categoryId)?1:0}
+  if(q.type==='gaps'){const answer=a as Record<string,string>;return (q.gaps?.length??0)>0&&q.gaps!.every(gap=>gap.acceptedAnswers.some(value=>norm(value)===norm(answer[gap.id]??'')))?1:0}
   return q.pairs?.every(p=>{const answer=a as Record<string,string>;return q.matchingAnswerMap?answer[p.id]===q.matchingAnswerMap[p.id]||answer[p.id]===p.id:answer[p.id]===p.id||answer[p.left]===p.right})?1:0;
 }
 export const gradeFromPercentage=(percentage:number)=>Math.round(Math.max(0,Math.min(100,percentage))/10);

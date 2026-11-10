@@ -1,10 +1,13 @@
-export type QuestionType='single'|'multiple'|'short'|'matching'|'ordering';
+export type QuestionType='single'|'multiple'|'short'|'matching'|'ordering'|'sorting'|'gaps';
 export type TestStatus='draft'|'published'|'archived';
 export interface MediaRef {mediaId:string;objectKey:string;kind:'image'|'audio';name:string;contentType:string;size:number;url?:string}
 export interface Option {id:string;text:string;isCorrect:boolean;imageUrl?:string;imageName?:string;imageAlt?:string;imageMedia?:MediaRef;audioUrl?:string;audioName?:string;audioMedia?:MediaRef}
 export interface Pair {id:string;left:string;right:string;leftImageUrl?:string;leftImageName?:string;leftImageMedia?:MediaRef;leftAudioUrl?:string;leftAudioName?:string;leftAudioMedia?:MediaRef;rightImageUrl?:string;rightImageName?:string;rightImageMedia?:MediaRef;rightAudioUrl?:string;rightAudioName?:string;rightAudioMedia?:MediaRef}
 export interface MatchingOption {id:string;text:string;imageUrl?:string;imageName?:string;imageMedia?:MediaRef;audioUrl?:string;audioName?:string;audioMedia?:MediaRef}
-export interface Question {id:string;type:QuestionType;text:string;points:number;options?:Option[];acceptedAnswers?:string[];pairs?:Pair[];matchingOptions?:MatchingOption[];matchingAnswerMap?:Record<string,string>;items?:string[];imageUrl?:string;imageName?:string;imageAlt?:string;imageMedia?:MediaRef;audioUrl?:string;audioName?:string;audioMedia?:MediaRef}
+export interface Category {id:string;name:string}
+export interface SortItem {id:string;text:string;categoryId:string}
+export interface Gap {id:string;acceptedAnswers:string[];choices?:string[]}
+export interface Question {id:string;type:QuestionType;text:string;points:number;options?:Option[];acceptedAnswers?:string[];pairs?:Pair[];matchingOptions?:MatchingOption[];matchingAnswerMap?:Record<string,string>;items?:string[];categories?:Category[];sortItems?:SortItem[];gaps?:Gap[];gapMode?:'input'|'select';imageUrl?:string;imageName?:string;imageAlt?:string;imageMedia?:MediaRef;audioUrl?:string;audioName?:string;audioMedia?:MediaRef}
 export interface QuizTest {id:string;ownerId?:string;authorName?:string;slug:string;title:string;subject:string;grade:string;topic:string;description:string;instructions:string;status:TestStatus;questions:Question[];questionCount?:number;createdAt:string;updatedAt:string}
 export interface Student {firstName:string;lastName:string;group:string;comment:string}
 export type Answer=string|string[]|Record<string,string>;

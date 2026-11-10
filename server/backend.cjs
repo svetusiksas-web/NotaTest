@@ -90,6 +90,8 @@ function prepareQuestion(question){
   if(publicQuestion.options)publicQuestion.options=publicQuestion.options.map(({isCorrect,...option})=>option);
   delete publicQuestion.acceptedAnswers;
   if(question.type==='ordering')publicQuestion.items=shuffle(question.items??[]);
+  if(question.type==='sorting')publicQuestion.sortItems=shuffle((question.sortItems??[]).map(({categoryId,...item})=>item));
+  if(question.type==='gaps')publicQuestion.gaps=(question.gaps??[]).map(gap=>({id:gap.id,...question.gapMode==='select'?{choices:shuffle(gap.choices??[])}:{}}));
   if(question.type==='matching'){
     const tokens=(question.pairs??[]).map(pair=>({pair,id:question.matchingAnswerMap?.[pair.id]??randomUUID()}));
     privateQuestion.matchingAnswerMap=Object.fromEntries(tokens.map(({pair,id})=>[pair.id,id]));
@@ -130,6 +132,8 @@ function scoreQuestion(question,answer){
   if(question.type==='multiple'){if(!Array.isArray(answer))return 0;const selected=[...new Set(answer)].sort();const correct=(question.options??[]).filter(option=>option.isCorrect).map(option=>option.id).sort();return correct.length>0&&selected.length===correct.length&&selected.every((id,index)=>id===correct[index])?1:0}
   if(question.type==='short')return(question.acceptedAnswers??[]).some(value=>norm(value)===norm(answer))?1:0;
   if(question.type==='ordering')return JSON.stringify(answer)===JSON.stringify(question.items)?1:0;
+  if(question.type==='sorting')return(question.sortItems??[]).length>0&&(question.sortItems??[]).every(item=>answer?.[item.id]===item.categoryId)?1:0;
+  if(question.type==='gaps')return(question.gaps??[]).length>0&&(question.gaps??[]).every(gap=>(gap.acceptedAnswers??[]).some(value=>norm(value)===norm(answer?.[gap.id]??'')))?1:0;
   const map=question.matchingAnswerMap??{};return(question.pairs??[]).every(pair=>answer?.[pair.id]===map[pair.id])?1:0;
 }
 
