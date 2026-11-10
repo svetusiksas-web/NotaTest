@@ -134,13 +134,14 @@ function scoreQuestion(question,answer){
   if(question.type==='ordering')return JSON.stringify(answer)===JSON.stringify(question.items)?1:0;
   if(question.type==='sorting')return(question.sortItems??[]).length>0&&(question.sortItems??[]).every(item=>answer?.[item.id]===item.categoryId)?1:0;
   if(question.type==='gaps')return(question.gaps??[]).length>0&&(question.gaps??[]).every(gap=>(gap.acceptedAnswers??[]).some(value=>norm(value)===norm(answer?.[gap.id]??'')))?1:0;
-  const map=question.matchingAnswerMap??{};return(question.pairs??[]).every(pair=>answer?.[pair.id]===map[pair.id])?1:0;
+  const map=question.matchingAnswerMap??{};return(question.pairs??[]).reduce((score,pair)=>score+(answer?.[pair.id]===map[pair.id]?1:0),0);
 }
+const questionMaxScore=question=>question.type==='matching'?(question.pairs??[]).length:1;
 
 async function submitAttempt({testId,student,answers}){
   if(!testId||!student?.firstName||!student?.lastName||!answers||typeof answers!=='object')throw Object.assign(new Error('Заполните данные ученика и ответы.'),{status:400});
   const snapshot=await db().doc(`tests/${testId}`).get();if(!snapshot.exists||snapshot.data().status!=='published')throw Object.assign(new Error('Тест недоступен.'),{status:404});
-  const test=snapshot.data();const maxScore=test.questions.length;const score=test.questions.reduce((total,question)=>total+scoreQuestion(question,answers[question.id]),0);const percentage=maxScore?Math.round(score/maxScore*100):0;
+  const test=snapshot.data();const maxScore=test.questions.reduce((total,question)=>total+questionMaxScore(question),0);const score=test.questions.reduce((total,question)=>total+scoreQuestion(question,answers[question.id]),0);const percentage=maxScore?Math.round(score/maxScore*100):0;
   const attempt={id:randomUUID(),testId:test.id,ownerId:test.ownerId,testTitle:test.title,student:clean(student),answers:clean(answers),score,maxScore,percentage,grade:Math.round(Math.max(0,Math.min(100,percentage))/10),completedAt:new Date().toISOString(),notificationStatus:'pending',createdAt:FieldValue.serverTimestamp()};
   await db().doc(`attempts/${attempt.id}`).set(attempt);
   try{const notified=await notifyTeacher(attempt,test);await db().doc(`attempts/${attempt.id}`).update({notificationStatus:notified?'sent':'not_connected'})}catch(error){console.error('Teacher Telegram notification failed',error);await db().doc(`attempts/${attempt.id}`).update({notificationStatus:'failed'}).catch(()=>{})}
