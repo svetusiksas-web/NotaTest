@@ -7,7 +7,7 @@ const s3=require('./s3.cjs');
 const ADMIN_EMAIL='svetusiksas@gmail.com';
 const clean=value=>JSON.parse(JSON.stringify(value));
 const shuffle=values=>{const result=[...values];for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]]}return result};
-const norm=value=>String(value??'').trim().replace(/\s+/g,' ').toLocaleLowerCase('ru');
+const norm=value=>String(value??'').trim().replace(/\s+/g,' ').toLocaleLowerCase('ru').replace(/і/g,'и');
 
 function app(){
   if(getApps().length)return getApps()[0];
@@ -131,12 +131,12 @@ function scoreQuestion(question,answer){
   if(question.type==='single')return(question.options??[]).some(option=>option.id===answer&&option.isCorrect)?1:0;
   if(question.type==='multiple'){if(!Array.isArray(answer))return 0;const selected=[...new Set(answer)].sort();const correct=(question.options??[]).filter(option=>option.isCorrect).map(option=>option.id).sort();return correct.length>0&&selected.length===correct.length&&selected.every((id,index)=>id===correct[index])?1:0}
   if(question.type==='short')return(question.acceptedAnswers??[]).some(value=>norm(value)===norm(answer))?1:0;
-  if(question.type==='ordering')return JSON.stringify(answer)===JSON.stringify(question.items)?1:0;
-  if(question.type==='sorting')return(question.sortItems??[]).length>0&&(question.sortItems??[]).every(item=>answer?.[item.id]===item.categoryId)?1:0;
+  if(question.type==='ordering'){if(!Array.isArray(answer))return 0;return(question.items??[]).reduce((score,item,index)=>score+(answer[index]===item?1:0),0)}
+  if(question.type==='sorting')return(question.sortItems??[]).reduce((score,item)=>score+(answer?.[item.id]===item.categoryId?1:0),0);
   if(question.type==='gaps')return(question.gaps??[]).length>0&&(question.gaps??[]).every(gap=>(gap.acceptedAnswers??[]).some(value=>norm(value)===norm(answer?.[gap.id]??'')))?1:0;
   const map=question.matchingAnswerMap??{};return(question.pairs??[]).reduce((score,pair)=>score+(answer?.[pair.id]===map[pair.id]?1:0),0);
 }
-const questionMaxScore=question=>question.type==='matching'?(question.pairs??[]).length:1;
+const questionMaxScore=question=>question.type==='matching'?(question.pairs??[]).length:question.type==='ordering'?(question.items??[]).length:question.type==='sorting'?(question.sortItems??[]).length:1;
 function isAnswered(question,answer){if(answer===undefined)return false;if(question.type==='single'||question.type==='short')return typeof answer==='string'&&answer.trim().length>0;if(question.type==='multiple')return Array.isArray(answer)&&answer.length>0;if(question.type==='matching')return(question.pairs??[]).length>0&&(question.pairs??[]).every(pair=>Boolean(answer?.[pair.id]));if(question.type==='ordering')return Array.isArray(answer)&&answer.length===(question.items??[]).length;if(question.type==='sorting')return(question.sortItems??[]).length>0&&(question.sortItems??[]).every(item=>Boolean(answer?.[item.id]));if(question.type==='gaps')return(question.gaps??[]).length>0&&(question.gaps??[]).every(gap=>Boolean(String(answer?.[gap.id]??'').trim()));return false}
 
 async function submitAttempt({testId,student,answers}){
